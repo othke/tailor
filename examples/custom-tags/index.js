@@ -9,32 +9,27 @@ const Tailor = require('../../');
 
 const tailor = new Tailor({
     templatesPath: path.join(__dirname, 'templates'),
-    handledTags: ['switcher'],
+    handledTags: ['jsscript'],
     handleTag: (request, tag, options, context) => {
-        if (tag && tag.name === 'switcher') {
+        if (tag && tag.name === 'jsscript') {
             const st = processTemplate(request, options, context);
-
-            const finalSrc = tag.attributes['final-src'];
-            http.get(
-                `http://localhost:8081/switcher?nesting=${tag.attributes
-                    .nesting}&final_src=${finalSrc}`,
-                res => {
-                    let data = '';
-                    res.on('data', chunk => {
-                        data += chunk;
-                    });
-                    res.on('end', () => {
-                        options
-                            .parseTemplate(data, null, false)
-                            .then(parsedTemplate => {
-                                parsedTemplate.forEach(item => {
-                                    st.write(item);
-                                });
-                                st.end();
+            http.get('http://localhost:8081/jsscript', res => {
+                let data = '';
+                res.on('data', chunk => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    options
+                        .parseTemplate(data, null, false)
+                        .then(parsedTemplate => {
+                            parsedTemplate.forEach(item => {
+                                console.log({ item });
+                                st.write(item);
                             });
-                    });
-                }
-            );
+                            st.end();
+                        });
+                });
+            });
             return st;
         }
 
@@ -60,32 +55,16 @@ http
     .createServer((req, res) => {
         const urlObj = url.parse(req.url, true);
 
-        if (urlObj.pathname === '/switcher') {
-            res.setHeader('Content-Type', 'text/html');
-            const { nesting, final_src } = urlObj.query;
-            const currentNesting = parseInt(nesting);
-
-            console.log(
-                'Request to switcher with nesting "%s"',
-                currentNesting
-            );
-
-            if (currentNesting === 0) {
-                return res.end(`<fragment src="${final_src}"/>`);
-            } else {
-                return res.end(`
-                <div>Switcher ${currentNesting}</div>
-                <switcher nesting=${currentNesting -
-                    1} final-src=${final_src} ></switcher>
+        if (urlObj.pathname === '/jsscript') {
+            res.setHeader('Content-Type', 'text/javascript');
+            return res.end(`
+                <script src='https://polyfill.io/v3/polyfill.js'></script>
             `);
-            }
         }
 
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, { 'Content-Type': 'text/javascript' });
 
-        // fragment content
-        const name = urlObj.query.name;
-        res.end(`<div>Fragment, name: ${name}</div>`);
+        res.end('');
     })
     .listen(8081, function() {
         console.log('Fragment Server listening on port 8081');
